@@ -1,0 +1,51 @@
+{
+  "customer_id": "C001",
+  "subscriptions": {
+    "NETFLIX.COM": {
+      "cadence": "monthly",
+      "amount": 15.99,
+      "previous_amount": 13.49,
+      "active": true
+    },
+    "SPOTIFY P1A2B3C4": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": true
+    },
+    "BASIC FIT FRANCE": {
+      "cadence": "monthly",
+      "amount": 29.99,
+      "active": true
+    },
+    "DEEZER": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": false
+    },
+    "FREE MOBILE": {
+      "cadence": "monthly",
+      "amount": 19.99,
+      "active": true
+    },
+    "COTISATION VISA PREMIER": {
+      "cadence": "monthly",
+      "amount": 3.5,
+      "active": true
+    },
+    "NAVIGO ANNUEL RATP": {
+      "cadence": "monthly",
+      "amount": 88.8,
+      "active": true
+    }
+  },
+  "friends": [
+    "YASMINE MARTIN",
+    "LEA MOREAU",
+    "KARIM DURAND"
+  ],
+  "ibans": [
+    "FR48 9999 9994 4058 0147 4666 772",
+    "FR97 9999 9793 5463 2682 0426 082",
+    "FR52 9999 9284 3262 6776 6578 430"
+  ]
+}

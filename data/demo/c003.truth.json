@@ -1,0 +1,51 @@
+{
+  "customer_id": "C003",
+  "subscriptions": {
+    "NETFLIX.COM": {
+      "cadence": "monthly",
+      "amount": 15.99,
+      "previous_amount": 13.49,
+      "active": true
+    },
+    "SPOTIFY P1A2B3C4": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": true
+    },
+    "BASIC FIT FRANCE": {
+      "cadence": "monthly",
+      "amount": 29.99,
+      "active": true
+    },
+    "DEEZER": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": false
+    },
+    "FREE MOBILE": {
+      "cadence": "monthly",
+      "amount": 19.99,
+      "active": true
+    },
+    "COTISATION VISA PREMIER": {
+      "cadence": "monthly",
+      "amount": 3.5,
+      "active": true
+    },
+    "NAVIGO ANNUEL RATP": {
+      "cadence": "monthly",
+      "amount": 88.8,
+      "active": true
+    }
+  },
+  "friends": [
+    "HUGO LEROY",
+    "KARIM MARTIN",
+    "THOMAS MARTIN"
+  ],
+  "ibans": [
+    "FR04 9999 9367 1579 0308 3211 450",
+    "FR26 9999 9112 3039 8629 4061 501",
+    "FR66 9999 9744 6662 3334 2302 531"
+  ]
+}

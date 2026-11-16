@@ -1,0 +1,11 @@
+{
+  "_comment": "French regulated savings. Rates are set by the State and revised on 1 February and 1 August. Update this file at each revision; the assistant always states the date and source of the rate it uses.",
+  "as_of": "2026-11-16",
+  "next_revision": "2027-02-01",
+  "source": "https://selectra.info/finance/actualites/marche/ce-qui-change-novembre-2026-epargne-livrets",
+  "products": {
+    "livret_a": {"name": "Livret A", "rate_pct": 1.7, "since": "2026-08-01", "ceiling_eur": 22950, "tax_free": true, "interest": "quinzaine"},
+    "ldds": {"name": "LDDS", "rate_pct": 1.7, "since": "2026-08-01", "ceiling_eur": 12000, "tax_free": true, "interest": "quinzaine"},
+    "lep": {"name": "LEP", "rate_pct": 2.5, "since": null, "ceiling_eur": 10000, "tax_free": true, "interest": "quinzaine", "condition": "reserved to households under an income threshold"}
+  }
+}

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nestegg"
+version = "0.1.0"
+description = "A savings assistant a bank could deploy: every figure computed by code and traceable to transactions, sensitive data masked, compliance tested."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Meryem El Alaoui Hassani" }]
+dependencies = ["pydantic>=2.6"]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.50"]
+azure = ["openai>=1.108,<4", "azure-identity>=1.16"]
+openai = ["openai>=1.108,<4"]
+local = ["openai>=1.108,<4"]
+anthropic = ["anthropic>=2.0,<3"]
+gemini = ["google-genai>=1.30,<4"]
+dev = ["pytest>=8", "ruff>=0.6"]
+all = ["nestegg[ui,azure,anthropic,gemini,dev]"]
+
+[project.scripts]
+nestegg = "nestegg.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+nestegg = ["data/*.json"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

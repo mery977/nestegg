@@ -1,0 +1,51 @@
+{
+  "customer_id": "C002",
+  "subscriptions": {
+    "NETFLIX.COM": {
+      "cadence": "monthly",
+      "amount": 15.99,
+      "previous_amount": 13.49,
+      "active": true
+    },
+    "SPOTIFY P1A2B3C4": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": true
+    },
+    "BASIC FIT FRANCE": {
+      "cadence": "monthly",
+      "amount": 29.99,
+      "active": true
+    },
+    "DEEZER": {
+      "cadence": "monthly",
+      "amount": 11.99,
+      "active": false
+    },
+    "FREE MOBILE": {
+      "cadence": "monthly",
+      "amount": 19.99,
+      "active": true
+    },
+    "COTISATION VISA PREMIER": {
+      "cadence": "monthly",
+      "amount": 3.5,
+      "active": true
+    },
+    "NAVIGO ANNUEL RATP": {
+      "cadence": "monthly",
+      "amount": 88.8,
+      "active": true
+    }
+  },
+  "friends": [
+    "LEA MARTIN",
+    "MARIE MOREAU",
+    "SARAH BERNARD"
+  ],
+  "ibans": [
+    "FR89 9999 9768 9470 2454 1245 070",
+    "FR27 9999 9878 7920 7243 2113 139",
+    "FR74 9999 9798 3105 5711 8464 109"
+  ]
+}
