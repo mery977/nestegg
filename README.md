@@ -9,8 +9,8 @@ goal?* A general chatbot can answer that once, from a file. A bank cannot use on
 in its infrastructure, every number shown to a client must be exact and auditable, and regulated
 investment advice must be refused. Nestegg is built around those constraints.
 
-> Status: **step 2 of 4 — the assistant**: a tool-using agent wrapped in guardrails, with a chat interface.
-> Next: automated red teaming and evaluation, then the API, MCP server and Azure deployment.
+> Status: the assistant (agent + guardrails + chat) and its Databricks lakehouse with Unity Catalog governance.
+> Next: the agent on Databricks with MLflow tracing, automated red teaming with LLM judges, fine-tuning, Azure deployment.
 
 ## What works today
 
@@ -54,6 +54,24 @@ question ──► input guardrails ──► agent loop ───────�
 nestegg ask  --customer C001 "Quels sont mes abonnements ?" [--provider anthropic]
 nestegg chat --customer C001
 ```
+
+## On Databricks: the same rules at bank scale
+
+```
+fictional statements, 2,000+ customers  ->  bronze  ->  silver (+ quarantine)  ->  gold  ->  Unity Catalog secured views
+```
+
+- **Same figures on a laptop and on Spark**: the package's functions run inside pandas UDFs, and a test checks that both
+  paths give the same transaction ids and the same amounts, to the cent.
+- **Governance enforced by the platform**: secured views apply row-level security (`access_map`, `current_user()`)
+  and mask IBANs, cards, e-mails and names with a SQL function tested on Spark; the job fails if either breaks.
+- **One command**: a Databricks Asset Bundle deploys the serverless job, on Free Edition or Azure Databricks.
+
+```powershell
+.\scripts\databricks.ps1 -Workspace https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
+```
+
+Details: [docs/databricks.md](docs/databricks.md).
 
 ## Security, designed in from the first line
 
@@ -109,9 +127,11 @@ src/nestegg/
   llm.py            providers: offline, Azure OpenAI, OpenAI, Claude, Gemini, local (Ollama)
   offline.py        deterministic planner: the agent runs without any model or key
   audit.py          JSONL audit trail without personal data
+  lakehouse.py      Spark pipeline: bronze / silver / quarantine / gold, same functions as the package
+databricks/         job entry point, Unity Catalog governance SQL, demo queries (databricks.yml at the root)
 ui/app.py           chat + dashboard (Streamlit)
   data/rates.json   regulated rates, dated and sourced
-tests/              import, security, analytics, agent, providers, CLI
+tests/              import, security, analytics, agent, providers, CLI, lakehouse (Spark)
 ```
 
 ## License

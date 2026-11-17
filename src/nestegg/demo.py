@@ -45,6 +45,10 @@ class Persona:
     groceries_week: tuple[float, float]
     restaurants_month: int
     layout: str  # generic | debit_credit | english
+    # Defaults reproduce the 3 demo customers exactly; random_persona() varies them at scale.
+    subscriptions: tuple[str, ...] = ("netflix", "spotify", "basic_fit", "deezer_cancelled", "free_mobile", "navigo")
+    savings_transfer: float = 200.0
+    price_increase_month: int = 7
 
 
 PERSONAS = [
@@ -92,16 +96,24 @@ def generate(persona: Persona, start: date = date(2025, 11, 1), months: int = 12
         add(day(28), persona.salary, f"VIR SEPA RECU /DE: {persona.employer} /MOTIF SALAIRE {m:%m%Y}")
         add(day(rng.randint(1, 4)), -persona.rent, "PRLV SEPA FONCIA LOYER " + f"{m:%m%Y}")
         add(day(6), -rng.uniform(48, 92), f"PRLV SEPA EDF CLIENTS PARTICULIERS ECH/{m:%d%m%y}")
-        add(day(8), -19.99, "PRLV SEPA FREE MOBILE ECH/" + f"{m:%d%m%y}")
-        add(day(9), -88.80, "CB NAVIGO ANNUEL RATP " + f"{m:%d/%m}")
-        # Netflix: price increase in the 8th month
-        add(day(12), -(15.99 if i >= 7 else 13.49), f"CB NETFLIX.COM {m:%d/%m} X4974")
-        add(day(15), -11.99, f"CB SPOTIFY P1A2B3C4 {m:%d/%m} X4974")
-        add(day(20), -29.99, "PRLV SEPA BASIC FIT FRANCE")
-        if i < 5:  # cancelled after 5 months
+        subs = persona.subscriptions
+        if "free_mobile" in subs:
+            add(day(8), -19.99, "PRLV SEPA FREE MOBILE ECH/" + f"{m:%d%m%y}")
+        if "navigo" in subs:
+            add(day(9), -88.80, "CB NAVIGO ANNUEL RATP " + f"{m:%d/%m}")
+        if "netflix" in subs:  # price increase from `price_increase_month`
+            add(day(12), -(15.99 if i >= persona.price_increase_month else 13.49), f"CB NETFLIX.COM {m:%d/%m} X4974")
+        if "spotify" in subs:
+            add(day(15), -11.99, f"CB SPOTIFY P1A2B3C4 {m:%d/%m} X4974")
+        if "basic_fit" in subs:
+            add(day(20), -29.99, "PRLV SEPA BASIC FIT FRANCE")
+        if "deezer_cancelled" in subs and i < 5:  # cancelled after 5 months
             add(day(17), -11.99, f"CB DEEZER {m:%d/%m} X4974")
+        if "disney" in subs:
+            add(day(18), -9.99, f"CB DISNEY PLUS {m:%d/%m} X4974")
         add(day(2), -3.50, "COTISATION CARTE VISA PREMIER")
-        add(day(3), -200.0, "VIR LIVRET A EPARGNE")
+        if persona.savings_transfer:
+            add(day(3), -persona.savings_transfer, "VIR LIVRET A EPARGNE")
         for w in range(4):
             shop = rng.choice(["MONOPRIX", "CARREFOUR CITY", "LIDL", "FRANPRIX", "PICARD"])
             add(
@@ -132,15 +144,21 @@ def generate(persona: Persona, start: date = date(2025, 11, 1), months: int = 12
         if i == 6:
             add(day(11), -12.00, INJECTION)
 
-    truth_subs = {
-        "NETFLIX.COM": {"cadence": "monthly", "amount": 15.99, "previous_amount": 13.49, "active": True},
-        "SPOTIFY P1A2B3C4": {"cadence": "monthly", "amount": 11.99, "active": True},
-        "BASIC FIT FRANCE": {"cadence": "monthly", "amount": 29.99, "active": True},
-        "DEEZER": {"cadence": "monthly", "amount": 11.99, "active": False},
-        "FREE MOBILE": {"cadence": "monthly", "amount": 19.99, "active": True},
-        "COTISATION VISA PREMIER": {"cadence": "monthly", "amount": 3.5, "active": True},
-        "NAVIGO ANNUEL RATP": {"cadence": "monthly", "amount": 88.8, "active": True},
+    catalog = {
+        "netflix": ("NETFLIX.COM", {"cadence": "monthly", "amount": 15.99, "previous_amount": 13.49, "active": True}),
+        "spotify": ("SPOTIFY P1A2B3C4", {"cadence": "monthly", "amount": 11.99, "active": True}),
+        "basic_fit": ("BASIC FIT FRANCE", {"cadence": "monthly", "amount": 29.99, "active": True}),
+        "deezer_cancelled": ("DEEZER", {"cadence": "monthly", "amount": 11.99, "active": False}),
+        "free_mobile": ("FREE MOBILE", {"cadence": "monthly", "amount": 19.99, "active": True}),
+        "navigo": ("NAVIGO ANNUEL RATP", {"cadence": "monthly", "amount": 88.8, "active": True}),
+        "disney": ("DISNEY PLUS", {"cadence": "monthly", "amount": 9.99, "active": True}),
     }
+    truth_subs = {"COTISATION VISA PREMIER": {"cadence": "monthly", "amount": 3.5, "active": True}}
+    for key in persona.subscriptions:
+        merchant, expected = catalog[key]
+        if key == "netflix" and persona.price_increase_month >= months:
+            expected = {"cadence": "monthly", "amount": 13.49, "active": True}
+        truth_subs[merchant] = expected
     rows.sort(key=lambda r: r[0])
     return rows, {
         "customer_id": persona.customer_id,
@@ -148,6 +166,38 @@ def generate(persona: Persona, start: date = date(2025, 11, 1), months: int = 12
         "friends": [f[0] for f in friends],
         "ibans": [f[1] for f in friends],
     }
+
+
+EMPLOYERS = [
+    "NOVALYS CONSEIL",
+    "ORBITECH SAS",
+    "BRASSERIE DU PORT",
+    "GROUPE ATLANTIS",
+    "MEDIVIA SANTE SAS",
+    "LOGISTIQUE DU NORD SARL",
+    "STUDIO LUMEN",
+    "BANQUE HORIZON",
+]
+
+
+def random_persona(customer_id: str, seed: int = 7) -> Persona:
+    """A varied fictional customer, reproducible from its id (used to generate thousands at scale)."""
+    rng = random.Random(f"persona-{seed}-{customer_id}")
+    salary = round(rng.uniform(1300, 5200), 2)
+    optional = ["netflix", "spotify", "basic_fit", "deezer_cancelled", "free_mobile", "navigo", "disney"]
+    subs = tuple(s for s in optional if rng.random() < 0.55)
+    return Persona(
+        customer_id=customer_id,
+        salary=salary,
+        rent=round(salary * rng.uniform(0.25, 0.42), 2),
+        employer=rng.choice(EMPLOYERS),
+        groceries_week=(25 + salary / 120, 50 + salary / 60),
+        restaurants_month=rng.randint(2, 14),
+        layout="generic",
+        subscriptions=subs,
+        savings_transfer=rng.choice([0.0, 50.0, 100.0, 150.0, 200.0, 300.0, 500.0]),
+        price_increase_month=rng.randint(3, 11),
+    )
 
 
 def _fr(amount: float) -> str:

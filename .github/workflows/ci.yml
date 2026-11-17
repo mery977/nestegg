@@ -1,4 +1,4 @@
-﻿name: CI
+name: CI
 
 on:
   push:
@@ -21,3 +21,18 @@ jobs:
       - run: pip install -e ".[dev,openai]"
       - run: ruff check .
       - run: pytest -q
+
+  lakehouse:
+    # Spark pipeline and Unity Catalog masking SQL, on a local Spark (same results as the Python package)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: pip install -e ".[dev,spark]"
+      - run: pytest -q tests/test_lakehouse.py

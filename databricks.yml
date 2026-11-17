@@ -1,0 +1,76 @@
+# Databricks Asset Bundle: deploys the Nestegg lakehouse job (serverless) in one command.
+#   databricks bundle deploy          (uploads code + creates the job)
+#   databricks bundle run nestegg_lakehouse
+# Works on Databricks Free Edition (catalog "workspace") and on Azure Databricks (set --var catalog=...).
+
+bundle:
+  name: nestegg
+
+variables:
+  catalog:
+    description: Unity Catalog catalog where the tables are created (Free Edition provides "workspace")
+    default: workspace
+  schema:
+    description: Schema (database) for Nestegg tables and secured views
+    default: nestegg
+  customers:
+    description: Number of fictional customers to generate
+    default: "2000"
+
+sync:
+  include:
+    - src/**
+    - databricks/**
+
+resources:
+  jobs:
+    nestegg_lakehouse:
+      name: nestegg-lakehouse
+      description: Fictional bank statements -> bronze -> silver -> gold -> Unity Catalog governance -> checks
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "3"
+            dependencies:
+              - pydantic>=2.6
+      tasks:
+        - task_key: bronze
+          environment_key: default
+          spark_python_task:
+            python_file: ./databricks/jobs/lakehouse_job.py
+            parameters: [--stage, bronze, --root, "${workspace.file_path}", --catalog, "${var.catalog}",
+                         --schema, "${var.schema}", --customers, "${var.customers}"]
+        - task_key: silver
+          depends_on: [{ task_key: bronze }]
+          environment_key: default
+          spark_python_task:
+            python_file: ./databricks/jobs/lakehouse_job.py
+            parameters: [--stage, silver, --root, "${workspace.file_path}", --catalog, "${var.catalog}",
+                         --schema, "${var.schema}"]
+        - task_key: gold
+          depends_on: [{ task_key: silver }]
+          environment_key: default
+          spark_python_task:
+            python_file: ./databricks/jobs/lakehouse_job.py
+            parameters: [--stage, gold, --root, "${workspace.file_path}", --catalog, "${var.catalog}",
+                         --schema, "${var.schema}"]
+        - task_key: governance
+          depends_on: [{ task_key: gold }]
+          environment_key: default
+          spark_python_task:
+            python_file: ./databricks/jobs/lakehouse_job.py
+            parameters: [--stage, governance, --root, "${workspace.file_path}", --catalog, "${var.catalog}",
+                         --schema, "${var.schema}"]
+        - task_key: checks
+          depends_on: [{ task_key: governance }]
+          environment_key: default
+          spark_python_task:
+            python_file: ./databricks/jobs/lakehouse_job.py
+            parameters: [--stage, checks, --root, "${workspace.file_path}", --catalog, "${var.catalog}",
+                         --schema, "${var.schema}"]
+
+targets:
+  dev:
+    mode: development
+    default: true

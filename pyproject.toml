@@ -19,6 +19,7 @@ openai = ["openai>=1.108,<4"]
 local = ["openai>=1.108,<4"]
 anthropic = ["anthropic>=2.0,<3"]
 gemini = ["google-genai>=1.30,<4"]
+spark = ["pyspark>=3.5", "pandas>=2", "pyarrow>=14"]
 dev = ["pytest>=8", "ruff>=0.6"]
 all = ["nestegg[ui,azure,anthropic,gemini,dev]"]
 
