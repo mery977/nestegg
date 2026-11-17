@@ -255,12 +255,12 @@ def governance_sql(catalog: str, schema: str) -> list[str]:
     return sql_statements(render_sql(script, catalog, schema))
 
 
-# An IBAN (FR76 3000 ...) or an e-mail address still visible in a label. Plain string, no formatting: the regex
+# An IBAN (FR76 3000 ...) or an e-mail address still visible. Plain string, no formatting: the regex
 # quantifiers {2} and {2,7} must reach Spark exactly as written.
 LEAK_PATTERNS = ("[A-Z]{2}[0-9]{2}( ?[A-Z0-9]{4}){2,7}", "@")
 
 
-def leak_count_sql(table: str) -> str:
-    """Counts the labels of `table` that still show an IBAN or an e-mail (the job's final check: must be 0)."""
-    where = " OR ".join(f"label RLIKE '{p}'" for p in LEAK_PATTERNS)
+def leak_count_sql(table: str, columns: tuple[str, ...] = ("label", "merchant")) -> str:
+    """Counts the rows of `table` where a column still shows an IBAN or an e-mail (the job's final check: 0)."""
+    where = " OR ".join(f"{c} RLIKE '{p}'" for c in columns for p in LEAK_PATTERNS)
     return f"SELECT count(*) AS n FROM {table} WHERE " + where

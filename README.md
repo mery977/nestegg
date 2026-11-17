@@ -64,11 +64,13 @@ fictional statements, 2,000+ customers  ->  bronze  ->  silver (+ quarantine)  -
 - **Same figures on a laptop and on Spark**: the package's functions run inside pandas UDFs, and a test checks that both
   paths give the same transaction ids and the same amounts, to the cent.
 - **Governance enforced by the platform**: secured views apply row-level security (`access_map`, `current_user()`)
-  and mask IBANs, cards, e-mails and names with a SQL function tested on Spark; the job fails if either breaks.
+  and mask IBANs, cards, e-mails and names (in labels and merchants) with a SQL function tested on Spark; the job fails if either breaks.
 - **One command**: a Databricks Asset Bundle deploys the serverless job, on Free Edition or Azure Databricks.
+- **Run on Databricks Free Edition (serverless)**: 2,000 customers, 563,762 transactions, 576 unreadable lines
+  quarantined with their reason, 2 customers visible to the demo user out of 2,000, 0 IBAN or e-mail left visible.
 
 ```powershell
-.\scripts\databricks.ps1 -Workspace https://dbc-xxxxxxxx-xxxx.cloud.databricks.com
+.\scripts\databricks.ps1 -Workspace https://<your-workspace>.cloud.databricks.com
 ```
 
 Details: [docs/databricks.md](docs/databricks.md).

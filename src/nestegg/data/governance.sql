@@ -26,7 +26,7 @@ RETURN regexp_replace(
 CREATE OR REPLACE VIEW {catalog}.{schema}.customer_transactions
 COMMENT 'Transactions as the assistant may read them: own customers only, personal data masked'
 AS SELECT transaction_id, customer_id, date, amount_cents, {catalog}.{schema}.mask_label(label) AS label,
-          merchant, category, category_rule
+          {catalog}.{schema}.mask_label(merchant) AS merchant, category, category_rule
    FROM {catalog}.{schema}.silver_transactions
    WHERE customer_id IN (SELECT m.customer_id FROM {catalog}.{schema}.access_map m WHERE m.user_email = current_user());
 
@@ -35,8 +35,10 @@ COMMENT 'Monthly cashflow, own customers only'
 AS SELECT * FROM {catalog}.{schema}.gold_monthly_cashflow WHERE customer_id IN (SELECT m.customer_id FROM {catalog}.{schema}.access_map m WHERE m.user_email = current_user());
 
 CREATE OR REPLACE VIEW {catalog}.{schema}.customer_subscriptions
-COMMENT 'Detected subscriptions, own customers only'
-AS SELECT * FROM {catalog}.{schema}.gold_subscriptions WHERE customer_id IN (SELECT m.customer_id FROM {catalog}.{schema}.access_map m WHERE m.user_email = current_user());
+COMMENT 'Detected subscriptions, own customers only, merchant masked'
+AS SELECT customer_id, {catalog}.{schema}.mask_label(merchant) AS merchant, category, cadence, amount, previous_amount,
+          annual_cost, occurrences, first_date, last_date, next_expected, active
+   FROM {catalog}.{schema}.gold_subscriptions WHERE customer_id IN (SELECT m.customer_id FROM {catalog}.{schema}.access_map m WHERE m.user_email = current_user());
 
 CREATE OR REPLACE VIEW {catalog}.{schema}.customer_savings_capacity
 COMMENT 'Savings capacity, own customers only'

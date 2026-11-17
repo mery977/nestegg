@@ -143,8 +143,9 @@ def test_governance_sql_ships_inside_the_package():
     )
 
 
-def test_leak_check_runs_on_spark_and_finds_only_unmasked_labels(spark, tables):
-    """The job's final check, run as-is: 0 leaks on masked labels, every IBAN and e-mail found on raw ones."""
+def test_leak_check_runs_on_spark_and_finds_only_unmasked_values(spark, tables):
+    """The job's final check, run as-is on label AND merchant: 0 leaks once masked, every leak found on raw data.
+    (The merchant column leaked a PayPal e-mail before it was masked too: this test keeps it from coming back.)"""
     from pathlib import Path
 
     from nestegg.lakehouse import leak_count_sql
@@ -153,9 +154,19 @@ def test_leak_check_runs_on_spark_and_finds_only_unmasked_labels(spark, tables):
     sql = (Path(__file__).parent.parent / "src" / "nestegg" / "data" / "governance.sql").read_text(encoding="utf-8")
     start = sql.index("RETURN regexp_replace(", sql.index("mask_label")) + len("RETURN ")
     expr = sql[start : sql.index(";", start)]
-    silver.createOrReplaceTempView("raw_labels")
-    spark.sql(f"SELECT {expr} AS label FROM raw_labels").createOrReplaceTempView("masked_labels")
-    assert spark.sql(leak_count_sql("masked_labels")).first().n == 0
-    raw_leaks = spark.sql(leak_count_sql("raw_labels")).first().n
-    expected = silver.where("label LIKE 'VIR SEPA EMIS A %' OR label LIKE '%@%'").count()
-    assert raw_leaks == expected > 0
+    silver.createOrReplaceTempView("raw_rows")
+    spark.sql(
+        f"SELECT {expr} AS label, {expr.replace('(label,', '(merchant,')} AS merchant FROM raw_rows"
+    ).createOrReplaceTempView("masked_rows")
+    assert spark.sql(leak_count_sql("masked_rows")).first().n == 0
+    raw = silver.where("label LIKE 'VIR SEPA EMIS A %' OR label LIKE '%@%'").count()
+    assert spark.sql(leak_count_sql("raw_rows")).first().n == raw > 0
+    assert spark.sql(leak_count_sql("raw_rows", ("merchant",))).first().n > 0  # the PayPal e-mail
+
+
+def test_secured_views_mask_the_merchant_column():
+    from nestegg.lakehouse import governance_sql
+
+    views = {s.split()[4]: s for s in governance_sql("w", "n") if s.startswith("CREATE OR REPLACE VIEW")}
+    assert "w.n.mask_label(merchant) AS merchant" in views["w.n.customer_transactions"]
+    assert "w.n.mask_label(merchant) AS merchant" in views["w.n.customer_subscriptions"]

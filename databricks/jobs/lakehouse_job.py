@@ -68,7 +68,8 @@ elif args.stage == "checks":
     }
     assert visible == mapped, f"row-level security broken: visible {visible} vs mapped {mapped}"
     leaks = spark.sql(lh.leak_count_sql(f"{ns}.customer_transactions")).first().n
-    assert leaks == 0, f"{leaks} labels still show an IBAN or an e-mail"
+    leaks += spark.sql(lh.leak_count_sql(f"{ns}.customer_subscriptions", ("merchant",))).first().n
+    assert leaks == 0, f"{leaks} rows still show an IBAN or an e-mail (label or merchant)"
     total = spark.table(f"{ns}.silver_transactions").count()
     quarantined = spark.table(f"{ns}.quarantine_statement_lines").count()
     print(
