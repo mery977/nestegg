@@ -1,24 +1,24 @@
 """Databricks job entry point (serverless). One stage per task: bronze -> silver -> gold -> governance -> checks.
 
-Runs from the files the bundle syncs to the workspace: `--root` is that folder (${workspace.file_path}).
+The nestegg package is installed from the wheel the bundle builds (environment dependency), on the driver and on
+every worker, together with the governance SQL: nothing is read from workspace files at run time.
 """
 
 import argparse
-import sys
+
+from pyspark.sql import SparkSession
+
+from nestegg import lakehouse as lh
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--stage", required=True, choices=["bronze", "silver", "gold", "governance", "checks"])
-parser.add_argument("--root", required=True)
+parser.add_argument("--root", default="", help="synced bundle folder (unused, kept for compatibility)")
 parser.add_argument("--catalog", default="workspace")
 parser.add_argument("--schema", default="nestegg")
 parser.add_argument("--customers", type=int, default=2000)
 parser.add_argument("--demo-customers", default="C000001,C000002", help="customers mapped to the job's user")
 args = parser.parse_args()
-sys.path.insert(0, f"{args.root}/src")
 
-from pyspark.sql import SparkSession  # noqa: E402
-
-from nestegg import lakehouse as lh  # noqa: E402
 
 spark = SparkSession.builder.getOrCreate()
 ns = f"{args.catalog}.{args.schema}"
@@ -48,9 +48,7 @@ elif args.stage == "gold":
     save(lh.gold_subscriptions(silver), "gold_subscriptions", "Recurring payments, price changes, stopped ones")
     save(lh.gold_savings_capacity(silver), "gold_savings_capacity", "Median monthly savings capacity")
 elif args.stage == "governance":
-    with open(f"{args.root}/databricks/sql/governance.sql", encoding="utf-8") as f:
-        sql = f.read()
-    for statement in lh.sql_statements(lh.render_sql(sql, args.catalog, args.schema)):
+    for statement in lh.governance_sql(args.catalog, args.schema):
         spark.sql(statement)
     me = spark.sql("SELECT current_user() AS u").first().u
     rows = [(me, c.strip()) for c in args.demo_customers.split(",") if c.strip()]
@@ -69,14 +67,7 @@ elif args.stage == "checks":
         for r in spark.sql(f"SELECT customer_id FROM {ns}.access_map WHERE user_email = current_user()").collect()
     }
     assert visible == mapped, f"row-level security broken: visible {visible} vs mapped {mapped}"
-    leaks = (
-        spark.sql(
-            f"SELECT count(*) AS n FROM {ns}.customer_transactions "
-            "WHERE label RLIKE '[A-Z]{{2}}[0-9]{{2}}( ?[A-Z0-9]{{4}}){{2,7}}' OR label RLIKE '@'"
-        )
-        .first()
-        .n
-    )
+    leaks = spark.sql(lh.leak_count_sql(f"{ns}.customer_transactions")).first().n
     assert leaks == 0, f"{leaks} labels still show an IBAN or an e-mail"
     total = spark.table(f"{ns}.silver_transactions").count()
     quarantined = spark.table(f"{ns}.quarantine_statement_lines").count()

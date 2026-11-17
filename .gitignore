@@ -13,3 +13,7 @@ statements/
 !data/demo/
 # Audit logs (masked, but local runtime data)
 audit/
+
+# Wheels built by the Databricks bundle
+dist/
+build/

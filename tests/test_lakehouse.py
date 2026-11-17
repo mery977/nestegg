@@ -106,7 +106,7 @@ def test_unity_catalog_masking_function_masks_like_the_python_vault(spark):
 
     from nestegg.pii import find_leaks
 
-    sql = (Path(__file__).parent.parent / "databricks" / "sql" / "governance.sql").read_text(encoding="utf-8")
+    sql = (Path(__file__).parent.parent / "src" / "nestegg" / "data" / "governance.sql").read_text(encoding="utf-8")
     start = sql.index("RETURN regexp_replace(", sql.index("mask_label")) + len("RETURN ")
     expr = sql[start : sql.index(";", start)]
     cases = {
@@ -128,7 +128,34 @@ def test_governance_script_splits_into_its_statements():
 
     from nestegg.lakehouse import render_sql, sql_statements
 
-    sql = (Path(__file__).parent.parent / "databricks" / "sql" / "governance.sql").read_text(encoding="utf-8")
+    sql = (Path(__file__).parent.parent / "src" / "nestegg" / "data" / "governance.sql").read_text(encoding="utf-8")
     stmts = sql_statements(render_sql(sql, "workspace", "nestegg"))
-    assert len(stmts) == 7 and all(not s.startswith("--") for s in stmts)
+    assert len(stmts) == 6 and all(not s.startswith("--") for s in stmts)
     assert stmts[1].startswith("CREATE OR REPLACE FUNCTION workspace.nestegg.mask_label") and "'[IBAN]'" in stmts[1]
+
+
+def test_governance_sql_ships_inside_the_package():
+    from nestegg.lakehouse import governance_sql
+
+    stmts = governance_sql("workspace", "nestegg")
+    assert len(stmts) == 6 and stmts[-1].startswith(
+        "CREATE OR REPLACE VIEW workspace.nestegg.customer_savings_capacity"
+    )
+
+
+def test_leak_check_runs_on_spark_and_finds_only_unmasked_labels(spark, tables):
+    """The job's final check, run as-is: 0 leaks on masked labels, every IBAN and e-mail found on raw ones."""
+    from pathlib import Path
+
+    from nestegg.lakehouse import leak_count_sql
+
+    _, silver, _ = tables
+    sql = (Path(__file__).parent.parent / "src" / "nestegg" / "data" / "governance.sql").read_text(encoding="utf-8")
+    start = sql.index("RETURN regexp_replace(", sql.index("mask_label")) + len("RETURN ")
+    expr = sql[start : sql.index(";", start)]
+    silver.createOrReplaceTempView("raw_labels")
+    spark.sql(f"SELECT {expr} AS label FROM raw_labels").createOrReplaceTempView("masked_labels")
+    assert spark.sql(leak_count_sql("masked_labels")).first().n == 0
+    raw_leaks = spark.sql(leak_count_sql("raw_labels")).first().n
+    expected = silver.where("label LIKE 'VIR SEPA EMIS A %' OR label LIKE '%@%'").count()
+    assert raw_leaks == expected > 0

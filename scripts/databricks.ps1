@@ -12,6 +12,11 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $Workspace = $Workspace.TrimEnd("/")
+# The bundle builds the code as a wheel with the project's Python: use the project environment.
+if (-not $env:VIRTUAL_ENV) {
+    if (Test-Path ".venv\Scripts\Activate.ps1") { . .venv\Scripts\Activate.ps1 }
+    else { throw "No .venv found: run .\scripts\setup.ps1 first." }
+}
 
 if (-not (Get-Command databricks -ErrorAction SilentlyContinue)) {
     Write-Host "Installing the Databricks CLI..." -ForegroundColor Cyan

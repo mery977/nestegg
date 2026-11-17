@@ -6,7 +6,7 @@
 
 The business logic is not rewritten for Spark: the same functions (parse_amount, categorise, subscriptions.detect,
 analytics.savings_capacity) run inside pandas UDFs, so a figure computed on a laptop and on Databricks is the
-same figure. A test checks it.
+same figure. A test checks it. On Databricks the package is installed as a wheel on every node (see databricks.yml).
 """
 
 from __future__ import annotations
@@ -27,25 +27,6 @@ SUBSCRIPTIONS_SCHEMA = (
     "annual_cost double, occurrences int, first_date date, last_date date, next_expected date, active boolean"
 )
 CAPACITY_SCHEMA = "customer_id string, savings_capacity double, months_used int, formula string"
-
-
-def ship_code_to_workers() -> None:
-    """Send the nestegg modules with the UDFs (Spark Connect / serverless workers do not have the package)."""
-    import importlib
-
-    from pyspark import cloudpickle
-
-    for name in [
-        "nestegg",
-        "nestegg.schemas",
-        "nestegg.importers",
-        "nestegg.categorize",
-        "nestegg.subscriptions",
-        "nestegg.analytics",
-        "nestegg.demo",
-        "nestegg.lakehouse",
-    ]:
-        cloudpickle.register_pickle_by_value(importlib.import_module(name))
 
 
 # --- bronze ------------------------------------------------------------------------------------------------
@@ -76,7 +57,6 @@ def generate_bronze(
     partitions: int | None = None,
 ):
     """Fictional statements for `n_customers`, generated in parallel on the cluster (no data on the driver)."""
-    ship_code_to_workers()
     ids = spark.range(n_customers).selectExpr("format_string('C%06d', id) AS customer_id")
     if partitions:
         ids = ids.repartition(partitions)
@@ -128,7 +108,6 @@ def build_silver(bronze):
     from pyspark.sql import Window
     from pyspark.sql import functions as F
 
-    ship_code_to_workers()
     parsed = bronze.mapInPandas(lambda batches: (_parse(b) for b in batches), PARSED_SCHEMA)
     quarantine = parsed.where("reason IS NOT NULL").select(*[c.split()[0] for c in QUARANTINE_SCHEMA.split(", ")])
     ok = parsed.where("reason IS NULL")
@@ -225,7 +204,6 @@ def _subscriptions(pdf: pd.DataFrame) -> pd.DataFrame:
 
 
 def gold_subscriptions(silver):
-    ship_code_to_workers()
     return silver.groupBy("customer_id").applyInPandas(_subscriptions, SUBSCRIPTIONS_SCHEMA)
 
 
@@ -241,7 +219,6 @@ def _capacity(pdf: pd.DataFrame) -> pd.DataFrame:
 
 
 def gold_savings_capacity(silver):
-    ship_code_to_workers()
     return silver.groupBy("customer_id").applyInPandas(_capacity, CAPACITY_SCHEMA)
 
 
@@ -268,3 +245,22 @@ def sql_statements(script: str) -> list[str]:
 def render_sql(script: str, catalog: str, schema: str) -> str:
     """Fill {catalog} and {schema} (str.format would break on the regex quantifiers such as {2,7})."""
     return script.replace("{catalog}", catalog).replace("{schema}", schema)
+
+
+def governance_sql(catalog: str, schema: str) -> list[str]:
+    """The Unity Catalog governance statements, shipped inside the package (no workspace file to read at run time)."""
+    from importlib import resources
+
+    script = resources.files("nestegg").joinpath("data/governance.sql").read_text(encoding="utf-8")
+    return sql_statements(render_sql(script, catalog, schema))
+
+
+# An IBAN (FR76 3000 ...) or an e-mail address still visible in a label. Plain string, no formatting: the regex
+# quantifiers {2} and {2,7} must reach Spark exactly as written.
+LEAK_PATTERNS = ("[A-Z]{2}[0-9]{2}( ?[A-Z0-9]{4}){2,7}", "@")
+
+
+def leak_count_sql(table: str) -> str:
+    """Counts the labels of `table` that still show an IBAN or an e-mail (the job's final check: must be 0)."""
+    where = " OR ".join(f"label RLIKE '{p}'" for p in LEAK_PATTERNS)
+    return f"SELECT count(*) AS n FROM {table} WHERE " + where

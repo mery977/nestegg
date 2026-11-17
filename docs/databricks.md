@@ -19,7 +19,7 @@ fictional statements (2,000+ customers, generated on the cluster)
   same transaction ids and the same figures, to the cent.
 - **Governance in the platform, not in the application.** Base tables are private to the pipeline. Consumers (the
   assistant, analysts, BI) read secured views: row-level security from an `access_map` table (`current_user()`), and
-  `mask_label()` masking IBANs, card numbers, e-mails and transfer counterparties. Whatever tool queries the data,
+  `mask_label()` (in `src/nestegg/data/governance.sql`) masking IBANs, card numbers, e-mails and transfer counterparties. Whatever tool queries the data,
   the rules apply. The masking SQL is tested on Spark against the same cases as the Python vault.
 - **Quality you can audit.** Unreadable lines go to quarantine with their reason; the `checks` task fails the run if
   row-level security or masking is broken.

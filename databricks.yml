@@ -17,10 +17,23 @@ variables:
     description: Number of fictional customers to generate
     default: "2000"
 
+# The code ships as a wheel built on your machine and installed on every node (driver and workers).
+artifacts:
+  nestegg_wheel:
+    type: whl
+    path: .
+    build: python -m pip wheel . --no-deps --wheel-dir dist
+    dynamic_version: true
+    files:
+      - source: ./dist/nestegg-*.whl
+
 sync:
-  include:
+  exclude:
     - src/**
-    - databricks/**
+    - tests/**
+    - data/**
+    - docs/**
+    - ui/**
 
 resources:
   jobs:
@@ -33,7 +46,7 @@ resources:
           spec:
             environment_version: "3"
             dependencies:
-              - pydantic>=2.6
+              - ./dist/nestegg-*.whl
       tasks:
         - task_key: bronze
           environment_key: default
