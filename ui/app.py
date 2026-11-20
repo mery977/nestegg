@@ -159,7 +159,7 @@ with tab_board:
                 "amount €": s.amount,
                 "cadence": s.cadence,
                 "per year €": s.annual_cost,
-                "price before": s.previous_amount or "",
+                "price before €": s.previous_amount,
                 "status": "active" if s.active else f"stopped {s.last_date}",
             }
             for s in subs
